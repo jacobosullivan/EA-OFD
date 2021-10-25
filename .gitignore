@@ -1,0 +1,15 @@
+# Large or temporary files excluded from git repository. Large files are included as .zip folders
+Macroinverts/*.csv
+Macrophytes/*.csv
+Diatoms/*.csv
+Status/*.csv
+TaxonInfo/*.csv
+CatchmentClass/*
+Status/*
+figures/*
+ms_figures/*
+scripts_old/*
+summary_data/*
+*.swp
+*.RData
+*.Rhistory
