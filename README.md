@@ -8,7 +8,7 @@ Temporally robust spatial structure in ecosystems explained by local biodiversit
 Environment Agency data on Macroinvertebrate, Macrophyte and Diatom observations in England and R scripts to reproduce analyses of the catchment-scale temporal occupancy frequency distribution
 
 <p align="center">
-<img width="450" height="310" src="https://github.com/jacobosullivan/EA-OFD/blob/master/EA-OFD_icon.png?raw=true">
+<img width="750" height="310" src="https://github.com/jacobosullivan/EA-OFD/blob/master/EA-OFD_icon.png?raw=true">
 </p>
 
 Raw data are publicly available at https://environment.data.gov.uk/ecology-fish/downloads/ while catchment identifiers were taken from https://environment.data.gov.uk/catchment-planning/. Here we include both raw data and cleaned databases following various merging steps.
