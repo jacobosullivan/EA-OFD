@@ -142,6 +142,14 @@ if (0) {
   
   str(dat_turnover)
   write.csv(dat_turnover, "summary_data/macrophyte_dat_turnover.csv", row.names=F)
+  
+  dat_turnoverSOD_raw <- turnoverSOD_raw(dat,
+                                         filter=c(y0 = 1990, t0 = 0, n0 = 0, x0 = 10), 
+                                         cores=NULL,
+                                         catch_max=NULL,
+                                         catch="management")
+  str(dat_turnoverSOD_raw)
+  write.csv(dat_turnoverSOD_raw, "summary_data/macrophyte_dat_turnoverSOD_raw.csv", row.names=F)
 } else {
   dat_turnover <- read.csv("summary_data/macrophyte_dat_turnover.csv")
 }

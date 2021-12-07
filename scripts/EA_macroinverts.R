@@ -153,6 +153,14 @@ if (0) {
                                  catch="management")
   str(dat_turnoverSOD)
   write.csv(dat_turnoverSOD, "summary_data/macroinvert_dat_turnoverSOD.csv", row.names=F)
+  
+  dat_turnoverSOD_raw <- turnoverSOD_raw(dat,
+                                         filter=c(y0 = 1990, t0 = 0, n0 = 0, x0 = 10), 
+                                         cores=NULL,
+                                         catch_max=NULL,
+                                         catch="management")
+  str(dat_turnoverSOD_raw)
+  write.csv(dat_turnoverSOD_raw, "summary_data/macroinvert_dat_turnoverSOD_raw.csv", row.names=F)
 } else {
   dat_turnoverSOD <- read.csv("summary_data/macroinvert_dat_turnoverSOD.csv")
 }

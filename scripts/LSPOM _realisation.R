@@ -1,7 +1,7 @@
-## This script will numerically simulate the LSPD model to demonstrate the convergence on 
+## This script will numerically simulate the LSPOM model to demonstrate the convergence on 
 ## a right-skewed time-invariant steady state OFD
 
-simulateLSPD <- function(N=50, n=10, m=10, invasions=1e4, storeS=T, neutral=T) {
+simulateLSPOM <- function(N=50, n=10, m=10, invasions=1e4, storeS=T, storeO=F, neutral=T) {
   
   # List of N vectors of length n:
   occupancy_list <- apply(t(replicate(N,as.array(1:n))),1,as.list)
@@ -9,9 +9,18 @@ simulateLSPD <- function(N=50, n=10, m=10, invasions=1e4, storeS=T, neutral=T) {
   # N by n array recordSing species' integer IDs
   occupancy_table <- t(replicate(N,as.array(1:n)))
 
+  if (storeO) {
+    storeS=T
+  }
+  
   # Storage object for intermediate richness
   if (storeS) {
     recordS <- data.frame(i=1:invasions,S=NA)  
+  }
+  
+  # Storage object for intermediate OFDs
+  if (storeO) {
+    OFD_mat <- matrix(0, nrow=invasions, ncol=N)
   }
   
   # Initialise counter for integer species IDs
@@ -54,6 +63,11 @@ simulateLSPD <- function(N=50, n=10, m=10, invasions=1e4, storeS=T, neutral=T) {
       occupancy_table[target_patch,sample.int(n,1)] <- j
     }
     
+    if (storeO) {
+      OFD_i <- table(table(as.numeric(as.factor(occupancy_table))))
+      OFD_mat[i,as.numeric(names(OFD_i))] <- OFD_i
+    }
+    
     last_i <- new_i
   }
   
@@ -61,7 +75,10 @@ simulateLSPD <- function(N=50, n=10, m=10, invasions=1e4, storeS=T, neutral=T) {
   OFD <- data.frame(site.occ=1:max(as.numeric(names(OFD_table))),
                     freq=0)
   OFD$freq[as.numeric(names(OFD_table))] <- OFD_table
-  if (storeS) {
+  
+  if ((storeS) && (storeO)) {
+    return(list(S=recordS, OFD_mat=OFD_mat))
+  } else if (storeS) {
     return(list(S=recordS, OFD=OFD))
   } else {
     return(OFD)
@@ -75,17 +92,17 @@ invasions <- 1e4 # set number of invasions
 par(mfrow=c(3,2))
 
 m <- 1 # set mixing rate
-res <- simulateLSPD(N=N, n=n, m=m, invasions=invasions, storeS=T)
+res <- simulateLSPOM(N=N, n=n, m=m, invasions=invasions, storeS=T)
 plot(res$S, type='l', xlab="Invasion", ylab="Richness")
 plot(res$OFD, xlab="Site occupancy", ylab="Number of species", type='l')
 
 m <- 5 # set mixing rate
-res <- simulateLSPD(N=N, n=n, m=m, invasions=invasions, storeS=T)
+res <- simulateLSPOM(N=N, n=n, m=m, invasions=invasions, storeS=T)
 plot(res$S, type='l', xlab="Invasion", ylab="Richness")
 plot(res$OFD, xlab="Site occupancy", ylab="Number of species", type='l')
 
 m <- 10 # set mixing rate
-res <- simulateLSPD(N=N, n=n, m=m, invasions=invasions, storeS=T)
+res <- simulateLSPOM(N=N, n=n, m=m, invasions=invasions, storeS=T)
 plot(res$S, type='l', xlab="Invasion", ylab="Richness")
 plot(res$OFD, xlab="Site occupancy", ylab="Number of species", type='l')
 
@@ -109,7 +126,7 @@ if (0) {
   
   for (mm in m) {
     res_m <- foreach (r=1:no_reps, .combine=rbind) %dopar% { 
-      res_r <- simulateLSPD(N=N, n=n, m=mm, invasions=invasions, storeS=F)
+      res_r <- simulateLSPOM(N=N, n=n, m=mm, invasions=invasions, storeS=F)
       res_r$m <- mm
       res_r
     }
@@ -117,12 +134,63 @@ if (0) {
   }
   stopCluster(cl)
   
-  write.csv(res, "/data/home/btx718/Paleolimnology/datasets/EA/summary_data/LSPD_res_neutral.csv", row.names=F)
+  write.csv(res, "/data/home/btx718/Paleolimnology/datasets/EA/summary_data/LSPOM_res_neutral.csv", row.names=F)
   
   res.mn <- res %>%
     group_by(m, site.occ) %>%
     summarise(freq.mn=mean(freq), freq.sd=sd(freq))
   
-  write.csv(res.mn, "/data/home/btx718/Paleolimnology/datasets/EA/summary_data/LSPD_res_neutral_mean.csv", row.names=F)
+  write.csv(res.mn, "/data/home/btx718/Paleolimnology/datasets/EA/summary_data/LSPOM_res_neutral_mean.csv", row.names=F)
+}
+
+if (0) {
+  # Test stationarity in mean, variance and skewness of OFD for simulated metacommunity
+  # Generates LARGE matrix object (dimensions: invasion X N)
+  
+  momentExp <- function(OFD_i) {
+    OFD_tab <- data.frame(x=which(OFD_i!=0), Freq=OFD_i[which(OFD_i!=0)])
+    OFD <- apply(OFD_tab, MARGIN=1, FUN=function(X) rep(X[1], X[2]))
+    if (class(OFD)[1]=="list") {
+      OFD <- unlist(OFD)
+    } else if ((class(OFD)[1]=="matrix")) {
+      OFD <-as.vector(OFD)
+    }
+    mu1 <- mean(OFD)
+    mu2 <- var(OFD)
+    mu3 <- skewness(OFD)
+    return(c(mu1=mu1,mu2=mu2,mu3=mu3))
+  }
+  
+  require(e1071)
+  require(tseries)
+  
+  N <- 50 # set number of sites
+  n <- 10 # set richness limit for all sites
+  invasions <- 1e4 # set number of invasions
+  
+  m <- 1 # set mixing rate
+  res <- simulateLSPOM(N=N, n=n, m=m, invasions=invasions, storeO=T)
+  
+  par(mfrow=c(1,1))
+  plot(res$S, type='l', xlab="Invasion", ylab="Richness")
+  
+  dat_momentExp <- as.data.frame(t(apply(res$OFD_mat, MAR=1, FUN=momentExp)))
+  dat_momentExp$i <- 1:nrow(dat_momentExp)
+  
+  par(mfrow=c(3,1))
+  plot(mu1 ~ i, dat_momentExp, type='l')
+  plot(mu2 ~ i, dat_momentExp, type='l')
+  plot(mu3 ~ i, dat_momentExp, type='l')
+  
+  thresh <- 5000
+  
+  plot(mu1 ~ i, dat_momentExp[(nrow(dat_momentExp)-thresh):nrow(dat_momentExp),], type='l')
+  plot(mu2 ~ i, dat_momentExp[(nrow(dat_momentExp)-thresh):nrow(dat_momentExp),], type='l')
+  plot(mu3 ~ i, dat_momentExp[(nrow(dat_momentExp)-thresh):nrow(dat_momentExp),], type='l')
+  
+  adf.test(dat_momentExp$mu1[(nrow(dat_momentExp)-thresh):nrow(dat_momentExp)])
+  adf.test(dat_momentExp$mu2[(nrow(dat_momentExp)-thresh):nrow(dat_momentExp)])
+  adf.test(dat_momentExp$mu3[(nrow(dat_momentExp)-thresh):nrow(dat_momentExp)])
+  
 }
 

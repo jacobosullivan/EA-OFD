@@ -791,6 +791,91 @@ turnoverSOD <- function(dat,
   return(dat_comb)
 }
 
+turnoverSOD_raw <- function(dat,
+                            filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10), 
+                            cores=NULL,
+                            catch_max=NULL,
+                            catch="management") {
+  
+  ## Decay in similarity of SOD with temporal distance averaged over all start years
+  if (is.null(cores)) {
+    cores=detectCores()  
+  }
+  
+  if (!is.null(catch_max)) {
+    cores=min(c(cores,catch_max))
+  }
+  
+  cl <- makeCluster(cores)
+  registerDoParallel(cl)
+  
+  if (catch == "management") {
+    catch_index <- which(colnames(dat) == "Management.catchment")  
+  } else if (catch == "operational") {
+    catch_index <- which(colnames(dat) == "Operational.catchment")  
+  } else if (catch == "rbd") {
+    catch_index <- which(colnames(dat) == "River.basin.district")
+  }
+  
+  if (!is.null(catch_max)) {
+    no_metacomms <- catch_max  
+  } else {
+    no_metacomms <- length(unique(dat[,catch_index]))
+  }
+  
+  dat_comb <- foreach (i=1:no_metacomms, .combine=rbind) %dopar% {
+    
+    require(tidyverse) # relational database management
+    require(Matrix) # sparse matrix ss tables
+    require(vegan) # compute beta diversity
+    
+    dat_mc <- subset(dat, dat[,catch_index]==sort(unique(dat[,catch_index]))[i]) %>%
+      group_by(taxon,site,year) %>%
+      summarise(count=sum(count))
+    
+    dat_mc <- dat_mc %>%
+      filter(year > filter[1])
+    
+    dat_mc$site <- as.numeric(factor(dat_mc$site))
+    dat_mc$taxon <- as.numeric(factor(dat_mc$taxon))
+    no_taxa <- max(dat_mc$taxon)
+    no_year <- length(unique(dat_mc$year))
+    no_site <- max(dat_mc$site)
+    
+    if ((no_year < filter[4]) || (no_taxa < filter[2]) || (no_site < filter[3])) {
+      res = NULL
+    } else {
+      
+      site.occ <- Matrix(0, nrow=no_taxa, ncol=no_site, sparse = T)
+      SOD <- Matrix(0, nrow=no_taxa, ncol=no_year, sparse = T)
+      
+      for (y in 1:no_year) {
+        dat_y <- subset(dat_mc, year==sort(unique(dat_mc$year))[y])
+        site.occ <- Matrix(0, nrow=no_taxa, ncol=no_site, sparse = T)
+        for (j in unique(dat_y$taxon)) {
+          site.occ[j,subset(dat_y, taxon==j)$site] <- 1  
+        }
+        SOD[,y] <- rowSums(site.occ)/length(unique(dat_y$site))
+      }
+      B <- as.matrix(vegdist(t(SOD), method="bray"))
+      B.t <- data.frame(B = 1-as.vector(B),
+                        y = as.vector(as.matrix(dist(as.numeric(sort(unique(dat_mc$year)))))),
+                        y0 = rep(1:length(unique(dat_mc$year)), each=nrow(B)))
+      
+      B.t.mn <- B.t %>% 
+        group_by(y) %>%
+        summarise(B=mean(B))
+      
+      res <- data.frame(catchment=sort(unique(dat[,catch_index]))[i],
+                        dt=B.t.mn$y,
+                        BC.mn=B.t.mn$B)
+    }
+    res
+  }
+  stopCluster(cl) 
+  return(dat_comb)
+}
+
 fitTimescales <- function(dat,
                           dat_rand = dat_skew_accumulation,
                           filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10), 
