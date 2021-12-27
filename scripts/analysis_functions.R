@@ -876,12 +876,12 @@ turnoverSOD_raw <- function(dat,
   return(dat_comb)
 }
 
-fitTimescales <- function(dat,
-                          dat_rand = dat_skew_accumulation,
-                          filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10), 
-                          cores=NULL,
-                          catch_max=NULL,
-                          catch="management") {
+timescales <- function(dat,
+                       dat_rand = dat_skew_accumulation,
+                       filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 8, thresh=-2), 
+                       cores=NULL,
+                       catch_max=NULL,
+                       catch="management") {
   
   ## Decay in similarity of SOD with temporal distance averaged over all start years
   if (is.null(cores)) {
@@ -903,14 +903,14 @@ fitTimescales <- function(dat,
     catch_index <- which(colnames(dat) == "River.basin.district")
   }
   
+  filtered_catchment_years <- do.call(paste,subset(dat_rand, log10(abs(dat_rand$sk_s_d1)) > filter[5])[,c(grep("catchment", names(dat_rand)),grep("year", names(dat_rand)))])
+  dat <- dat[!do.call(paste,dat[,c(grep("catchment", names(dat)),grep("year", names(dat)))]) %in% filtered_catchment_years,]
+  
   if (!is.null(catch_max)) {
     no_metacomms <- catch_max  
   } else {
     no_metacomms <- length(unique(dat[,catch_index]))
   }
-  
-  filtered_catchment_years <- do.call(paste,subset(dat_rand, log10(abs(dat_rand$sk_s_d1)) > filter[5])[,c(grep("catchment", names(dat_rand)),grep("year", names(dat_rand)))])
-  dat <- dat[!do.call(paste,dat[,c(grep("catchment", names(dat)),grep("year", names(dat)))]) %in% filtered_catchment_years,]
   
   dat_comb <- foreach (i=1:no_metacomms) %dopar% {
     
@@ -945,7 +945,7 @@ fitTimescales <- function(dat,
       
       dimnames(site.occ_array) <- list(i=NULL, x=NULL, year=as.character(sort(unique(dat_mc$year))))
   
-      res < fitTimeScales(site.occ_array)
+      res <- fitTimeScales(site.occ_array, filter[4])
     }
     res
   }

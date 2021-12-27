@@ -1,9 +1,9 @@
-fitTimeScales <- function(site.occ_array) {
+fitTimeScales <- function(site.occ_array, x0) {
   ## This function takes as input a species-site-time array with the dimnames(site.occ_array)[3] a vector of time-point names (e.g. years)
   ## It will return range estimates of d, popDetect, alpha, al, metapopDetect, pRet and pRet.p - the model estimates
   ## Not all datasets are amenable to analysis using these fitting functions for example if the decay in compositional similarity is cannot be fit by an exponential model.
   ## Here we skip such catchments; updates are possible to model these differently
-  ## pRet and pRet.p are not used in the present analysis
+  ## pRet and pRet.p are not used in the current analysis
   
   ## Build a data set of pairs of years:
   time_spans_full <- 
@@ -52,7 +52,7 @@ fitTimeScales <- function(site.occ_array) {
     
     ## Fit community level turnover to determine alpha
     ## Least square fit
-    ### The contraint that 0 < alpha < 1 is implemented by defining al = qnorm(alpha), alpha=pnorm(al)
+    ### The constraint that 0 < alpha < 1 is implemented by defining al = qnorm(alpha), alpha=pnorm(al)
     fit2 <- tryCatch(
       with(as.list(fit$m$getPars()["d"]),
            nls(retained2 ~ a*(1-log((1-pnorm(al))*exp((1-pnorm(al))*d*span)/(exp((1-pnorm(al))*d*span)-pnorm(al)))/log(1-pnorm(al))), 
@@ -65,16 +65,24 @@ fitTimeScales <- function(site.occ_array) {
       next
     }
     
-    fit3 <- tryCatch(
-      nls(retained ~ a*((1-p)*exp(-d*span)+p), weights = weight, data = time_spans[time_spans$span>0,], start = c(a=0.5,d=1/5,p=0.1)),
-      error = function(x) NA)
-    
-    if (is.na(fit3)) {
-      pRet <- pRet.p <- NA
+    if (0) {
+      ## Estimate non-zero convergence of exponential decay: proportion of 'core' species - Not currently used in downstream analysis
+      ## Least square fit
+      ### The constraint that 0 < alpha < 1 is implemented by defining al = qnorm(alpha), alpha=pnorm(al)
+      fit3 <- tryCatch(
+        nls(retained ~ a*((1-p)*exp(-d*span)+p), weights = weight, data = time_spans[time_spans$span>0,], start = c(a=0.5,d=1/5,p=0.1)),
+        error = function(x) NA)
+      
+      if (is.na(fit3)) {
+        pRet <- pRet.p <- NA
+      } else {
+        pRet <- fit3$m$getPars()[3]
+        pRet.p <- summary(fit3)$coefficients["p",4]
+      }
     } else {
-      pRet <- fit3$m$getPars()[3]
-      pRet.p <- summary(fit3)$coefficients["p",4]
+      pRet <- pRet.p <- 0
     }
+    
     if (is.na(fit) || (fit$m$getPars()["d"] < 0)) {
       next
     }
@@ -86,9 +94,13 @@ fitTimeScales <- function(site.occ_array) {
                        pRet.p)
   }
   
+  # Early return for debugging:
+  res <- fit_table
+  return (res)
+  
   fit_table <- fit_table[complete.cases(fit_table),]
   
-  if (nrow(fit_table) < filter[4]) {
+  if (nrow(fit_table) < x0) {
     res <- NULL
   } else {
     ## Evaluate using jackknife:
@@ -107,5 +119,5 @@ fitTimeScales <- function(site.occ_array) {
     res <- list(catchment=sort(unique(dat[,catch_index]))[i], ranges=ranges, covar=covar, core=data.frame(pRet=fit_table$pRet, pRet.p=fit_table$pRet.p))
   }
   
-  return(res)
+  # return(res)
 }

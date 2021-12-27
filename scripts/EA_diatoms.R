@@ -168,12 +168,12 @@ if (0) {
 
 if (0) {
   if (0) {
-    dat_fitTimescales <- fitTimescales(dat,
-                                       dat_rand = dat_skew_accumulation,
-                                       filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 8, thresh = -2),
-                                       cores=NULL,
-                                       catch_max=NULL,
-                                       catch="management")
+    dat_fitTimescales <- timescales(dat,
+                                    dat_rand = dat_skew_accumulation,
+                                    filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 8, thresh = -2),
+                                    cores=NULL,
+                                    catch_max=NULL,
+                                    catch="management")
     str(dat_fitTimescales)
     write_rds(dat_fitTimescales, "summary_data/diatoms_dat_fitTimescales.RDS")  
   } else {
