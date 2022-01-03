@@ -1,4 +1,4 @@
-fitTimeScales <- function(site.occ_array, x0) {
+fitTimeScales <- function(site.occ_array, catchment, x0) {
   ## This function takes as input a species-site-time array with the dimnames(site.occ_array)[3] a vector of time-point names (e.g. years)
   ## It will return range estimates of d, popDetect, alpha, al, metapopDetect, pRet and pRet.p - the model estimates
   ## Not all datasets are amenable to analysis using these fitting functions for example if the decay in compositional similarity is cannot be fit by an exponential model.
@@ -38,30 +38,47 @@ fitTimeScales <- function(site.occ_array, x0) {
     }
     
     if (cor.test(time_spans$retained, time_spans$span)$p.value > 0.05) {
-      next
+      print(paste("y =", y, "Fail cor.test"))
+      # next
     }
     
     ## Fit turnover rate d of local communities:
+    # fit <- tryCatch(
+    #   nls(retained ~ a*exp(-d*span), weights = weight, data = time_spans[time_spans$span>0,], start = c(a=0.5,d=1/5)),
+    #   error = function(x) NA)
+    
     fit <- tryCatch(
-      nls(retained ~ a*exp(-d*span), weights = weight, data = time_spans[time_spans$span>0,], start = c(a=0.5,d=1/5)),
+      nls(retained ~ a*exp(-d*span), weights = weight, data = time_spans[time_spans$span>0,], start = c(a=0.5,d=1/5),
+          control=nls.control(maxiter=5000, minFactor = 1e-200)),
       error = function(x) NA)
     
     if (is.na(fit) || (fit$m$getPars()["d"] < 0)) {
+      print(paste("y =", y, "Fail fit()"))
       next
     }
     
     ## Fit community level turnover to determine alpha
     ## Least square fit
     ### The constraint that 0 < alpha < 1 is implemented by defining al = qnorm(alpha), alpha=pnorm(al)
+    # fit2 <- tryCatch(
+    #   with(as.list(fit$m$getPars()["d"]),
+    #        nls(retained2 ~ a*(1-log((1-pnorm(al))*exp((1-pnorm(al))*d*span)/(exp((1-pnorm(al))*d*span)-pnorm(al)))/log(1-pnorm(al))), 
+    #            weights = weight,  ## try both: weight and weight2
+    #            data = time_spans[with(time_spans,span>0),], 
+    #            start = c(a=0.3,al=qnorm(0.9)))),
+    #   error = function(x) NA)
+    
     fit2 <- tryCatch(
       with(as.list(fit$m$getPars()["d"]),
-           nls(retained2 ~ a*(1-log((1-pnorm(al))*exp((1-pnorm(al))*d*span)/(exp((1-pnorm(al))*d*span)-pnorm(al)))/log(1-pnorm(al))), 
+           nls(retained2 ~ a*(1-log((1-pnorm(al))*exp((1-pnorm(al))*d*span)/(exp((1-pnorm(al))*d*span)-pnorm(al)))/log(1-pnorm(al))),
                weights = weight,  ## try both: weight and weight2
-               data = time_spans[with(time_spans,span>0),], 
-               start = c(a=0.3,al=qnorm(0.9)) )),
+               data = time_spans[with(time_spans,span>0),],
+               start = c(a=0.3,al=qnorm(0.9))),
+               control=nls.control(maxiter=500, minFactor = 1e-200)),
       error = function(x) NA)
     
     if (is.na(fit2)) {
+      print(paste("y =", y, "Fail fit2()"))
       next
     }
     
@@ -95,13 +112,13 @@ fitTimeScales <- function(site.occ_array, x0) {
   }
   
   # Early return for debugging:
-  res <- fit_table
-  return (res)
+  # res <- fit_table
+  # return (res)
   
   fit_table <- fit_table[complete.cases(fit_table),]
   
   if (nrow(fit_table) < x0) {
-    res <- NULL
+    res <- "Filtered following fitting"
   } else {
     ## Evaluate using jackknife:
     fit_table0 <- fit_table[nrow(fit_table),]  # these are the directly computed means
@@ -116,8 +133,8 @@ fitTimeScales <- function(site.occ_array, x0) {
     al2m <- function(al){pnorm(al)/(1-pnorm(al))}
     ranges <- rbind(ranges,al2m(ranges["al",]))
     rownames(ranges)[nrow(ranges)] <- "m"
-    res <- list(catchment=sort(unique(dat[,catch_index]))[i], ranges=ranges, covar=covar, core=data.frame(pRet=fit_table$pRet, pRet.p=fit_table$pRet.p))
+    res <- list(catchment=catchment, ranges=ranges, covar=covar, core=data.frame(pRet=fit_table$pRet, pRet.p=fit_table$pRet.p))
   }
   
-  # return(res)
+  return(res)
 }

@@ -174,8 +174,8 @@ if (0) {
                                     cores=NULL,
                                     catch_max=NULL,
                                     catch="management")
-    str(dat_fitTimescales)
-    write_rds(dat_fitTimescales, "summary_data/macrophytes_dat_fitTimescales.RDS")
+    str(dat_fitTimescales[[1]])
+    write_rds(dat_fitTimescales, "summary_data/macrophytes_dat_fitTimescales2.RDS")
   } else {
     dat_fitTimescales <- read_rds("summary_data/macrophytes_dat_fitTimescales.RDS")
   }
@@ -190,20 +190,20 @@ if (0) {
                                          m.mn=NA, m.lw=NA, m.up=NA,
                                          cor.al = NA)
   
-  dat_pRet <- c()
+  # dat_pRet <- c()
   for (cc in 1:length(dat_fitTimescales)) {
-    if (!is.null(dat_fitTimescales[[cc]])) {
+    if (typeof(dat_fitTimescales[[cc]])=="list") {
       dat_fitTimescales_ranges$catchment[cc] <- as.character(dat_fitTimescales[[cc]]$catchment)
       dat_fitTimescales_ranges[cc, 2:(ncol(dat_fitTimescales_ranges)-1)] <- as.vector(t(dat_fitTimescales[[cc]]$ranges))
       dat_fitTimescales_ranges[cc, ncol(dat_fitTimescales_ranges)] <- dat_fitTimescales[[cc]]$covar[4,4]
     }
-    dat_pRet <- rbind(dat_pRet, data.frame(catchment=as.character(dat_fitTimescales[[cc]]$catchment),
-                                           pRet=dat_fitTimescales[[cc]]$core$pRet,
-                                           pRet.p=dat_fitTimescales[[cc]]$core$pRet.p))
+    # dat_pRet <- rbind(dat_pRet, data.frame(catchment=as.character(dat_fitTimescales[[cc]]$catchment),
+    #                                        pRet=dat_fitTimescales[[cc]]$core$pRet,
+    #                                        pRet.p=dat_fitTimescales[[cc]]$core$pRet.p))
   }
   dat_fitTimescales_ranges <- dat_fitTimescales_ranges[complete.cases(dat_fitTimescales_ranges),]
-  write.csv(dat_fitTimescales_ranges, "summary_data/macrophyte_dat_fitTimescales_ranges.csv", row.names=F)
-  write.csv(dat_pRet, "summary_data/macrophyte_dat_pRet.csv", row.names=F)
+  write.csv(dat_fitTimescales_ranges, "summary_data/macrophyte_dat_fitTimescales_ranges2.csv", row.names=F)
+  # write.csv(dat_pRet, "summary_data/macrophyte_dat_pRet.csv", row.names=F)
 } else {
   dat_fitTimescales <- read.csv("summary_data/macrophyte_dat_fitTimescales.csv")
 }

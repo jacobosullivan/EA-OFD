@@ -423,7 +423,7 @@ skew_accumulation <- function(dat,
 
 temporalMoments <- function(dat_mom, 
                             dat_rand,
-                            filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10, thresh = -2)) {
+                            filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 8, thresh = -2)) {
   # dat_mom: moments of the SOD or each catchment year
   # dat_rand: outcome of skewness accumulation experiment
   
@@ -877,7 +877,7 @@ turnoverSOD_raw <- function(dat,
 }
 
 timescales <- function(dat,
-                       dat_rand = dat_skew_accumulation,
+                       dat_rand,
                        filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 8, thresh=-2), 
                        cores=NULL,
                        catch_max=NULL,
@@ -903,8 +903,9 @@ timescales <- function(dat,
     catch_index <- which(colnames(dat) == "River.basin.district")
   }
   
+  # filter by curvature of skew accumulation experiment
   filtered_catchment_years <- do.call(paste,subset(dat_rand, log10(abs(dat_rand$sk_s_d1)) > filter[5])[,c(grep("catchment", names(dat_rand)),grep("year", names(dat_rand)))])
-  dat <- dat[!do.call(paste,dat[,c(grep("catchment", names(dat)),grep("year", names(dat)))]) %in% filtered_catchment_years,]
+  dat <- dat[!do.call(paste,dat[,c(catch_index, grep("year", names(dat)))]) %in% filtered_catchment_years,]
   
   if (!is.null(catch_max)) {
     no_metacomms <- catch_max  
@@ -924,28 +925,33 @@ timescales <- function(dat,
     dat_mc <- dat_mc %>%
       filter(year > filter[1])
     
-    dat_mc$site <- as.numeric(factor(dat_mc$site))
-    dat_mc$taxon <- as.numeric(factor(dat_mc$taxon))
-    no_taxa <- max(dat_mc$taxon)
-    no_year <- length(unique(dat_mc$year))
-    no_site <- max(dat_mc$site)
+    dat_mc_y <- dat_mc %>%
+      group_by(year) %>%
+      summarise(no_taxa = length(unique(taxon)), no_site = length(unique(site))) %>%
+      filter(no_taxa >= filter[2] & no_site >= filter[3])
     
-    if ((no_year < filter[4]) || (no_taxa < filter[2]) || (no_site < filter[3])) {
-      res = NULL
+    if ((nrow(dat_mc_y) < filter[4])) {
+      res = "Filtered"
     } else {
-      
+    
+      dat_mc$site <- as.numeric(factor(dat_mc$site))
+      dat_mc$taxon <- as.numeric(factor(dat_mc$taxon))
+      no_taxa <- max(dat_mc$taxon)
+      no_year <- length(unique(dat_mc$year))
+      no_site <- max(dat_mc$site)
+        
       site.occ_array <- array(0, dim=c(no_taxa, no_site, no_year))
-      
+
       for (y in 1:no_year) {
         dat_y <- subset(dat_mc, year==sort(unique(dat_mc$year))[y])
         for (j in unique(dat_y$taxon)) {
-          site.occ_array[j,subset(dat_y, taxon==j)$site,y] <- 1  
+          site.occ_array[j,subset(dat_y, taxon==j)$site,y] <- 1
         }
       }
-      
+
       dimnames(site.occ_array) <- list(i=NULL, x=NULL, year=as.character(sort(unique(dat_mc$year))))
-  
-      res <- fitTimeScales(site.occ_array, filter[4])
+
+      res <- fitTimeScales(site.occ_array, sort(unique(dat[,catch_index]))[i], filter[4])
     }
     res
   }
