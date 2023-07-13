@@ -44,9 +44,9 @@ EA-OFD
 |    | EA_diatoms.R # clean and analyse diatom data
 |    | EA_macroinverts.R # clean and analyse macroinvertebrate data
 |    | EA_macrophytes.R # clean and analyse macrophyte data
-|    | LSPD_realisation.R # single realisation of LSPDM
+|    | LSPOM_realisation.R # single realisation of LSPOM
 |    | analysis_functions.R # various functions used to analyse the data, applicable to all datasets
-|    | fitLSPD.R # procedure for fitting LSPD to binary species-by-site table
+|    | fitMCPD.R # procedure for fitting LSPOM solution to binary species-by-site table
 |    | fitTimeScales.R # procedure for estimating m/alpha from binary species-by-site-by-time array
 |    | tokeshi_method.R # tokeshi's (1992) test of biomodality
 |    └─── README.md
