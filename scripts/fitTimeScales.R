@@ -18,11 +18,9 @@ fitTimeScales <- function(site.occ_array, catchment, x0) {
     keepAllSites <- F
     sites <-  ( colSums(site.occ_array[,,y1]) & colSums(site.occ_array[,,y2]) ) | keepAllSites
     time_spans_full$retained[y] <- sum(site.occ_array[,sites,y1] & site.occ_array[,sites,y2])/sum(site.occ_array[,sites,y1])
-    #time_spans_full$retained[y] <- sum(site.occ_array[,,y1] & site.occ_array[,,y2])/sum(site.occ_array[,,y1])
     time_spans_full$retained2[y] <- sum(rowSums(site.occ_array[,,y1]) & rowSums(site.occ_array[,,y2]))/sum(rowSums(site.occ_array[,,y1])>0)
     time_spans_full$weight[y] <- sqrt(sum(site.occ_array[,sites,y1])*sum(site.occ_array[,sites,y2]))
     if(time_spans_full$weight[y]==0) time_spans_full$retained[y] <- 0
-    #time_spans_full$weight[y] <- sqrt(sum(site.occ_array[,,y1])*sum(site.occ_array[,,y2]))
     time_spans_full$weight2[y] <- sqrt(sum(rowSums(site.occ_array[,,y1])>0)*sum(rowSums(site.occ_array[,,y2])>0))
     time_spans_full$span[y] <- abs(diff(as.numeric(c(y1,y2))))  ## !! try both, signed values and abs() of this
   }
@@ -33,9 +31,6 @@ fitTimeScales <- function(site.occ_array, catchment, x0) {
 
   alpha <- colSums(site.occ_array > 0)# gives number of sampled species for each site and year
   if(!keepAllSites) alpha[alpha==0] <- NA # site-years without species are not sampled, discard
-  # mean_alpha <- mean(colMeans(alpha,na.rm = T)) # gives mean number of species per site
-  # mean_gamma <- mean(colSums(apply(site.occ_array,MARGIN = c(1,3),sum) > 0))
-  # mean_a_pRet <- mean_alpha/mean_gamma
   alphas <- colMeans(alpha,na.rm = T) # gives mean number of species per site
   gammas <- colSums(apply(site.occ_array,MARGIN = c(1,3),sum) > 0)
   mean_a_pRet <- mean(alphas/gammas,na.rm = T)
@@ -53,12 +48,9 @@ fitTimeScales <- function(site.occ_array, catchment, x0) {
 
     if (cor.test(time_spans$retained, time_spans$span)$p.value > 0.05) {
       print(paste("y =", y, "Fail cor.test"))
-      # next
     }
 
     plotit <- F
-    # plotit <- is.na(dropped_year) # plot fits for cases without left-out year
-    #if(!is.na(dropped_year)) next
 
     ## Fit turnover rate d of local communities:
     if(plotit){
@@ -78,7 +70,7 @@ fitTimeScales <- function(site.occ_array, catchment, x0) {
                          d=-as.numeric(mod$coefficients[2])),
                control=nls.control(maxiter=5000, minFactor = 1e-200)),
            error = function(x) NA)
-    #
+
     if (is.na(fit) || (fit$m$getPars()["d"] < 0)) {
       print(paste("y =", y, "Fail fit()"))
       if(plotit) dev.off()
@@ -91,41 +83,9 @@ fitTimeScales <- function(site.occ_array, catchment, x0) {
     fit_table[y,"popDetect"] <- as.list(fit$m$getPars()["a"])
     fit_table[y,"d"] <- with(as.list(fit$m$getPars()),d*(1-mean_a_pRet/a))
 
-    # if (1) {
-    #   ## Estimate non-zero convergence of exponential decay: proportion of 'core' species - Not currently used in downstream analysis
-    #   ## Least square fit
-    #   ### The constraint that 0 < alpha < 1 is implemented by defining al = qnorm(alpha), alpha=pnorm(al)
-    #   fit3 <- tryCatch(
-    #     nls(retained ~ a*((1-p)*exp(-d*span)+p), weights = weight, data = time_spans[time_spans$span>0,], start = c(fit$m$getPars(),p=0.1)),
-    #     error = function(x) NA)
-    #
-    #   if (is.na(fit3)) {
-    #     pRet <- pRet.p <- NA
-    #   } else {
-    #     pRet <- fit3$m$getPars()[3]
-    #     pRet.p <- summary(fit3)$coefficients["p",4]
-    #     if(plotit){
-    #       lines(c(0,100),c(1,1)*pRet*fit3$m$getPars()["a"],col="green",lty=3)
-    #       lines(seq(1,100),with(as.list(fit3$m$getPars()),a*((1-p)*exp(-d*seq(1,100))+p)),col="green")
-    #     }
-    #   }
-    #   fit_table[y,c("pRet","pRet.p")] <- list(pRet=pRet, pRet.p=pRet.p)
-    # } else {
-    #   pRet <- pRet.p <- 0
-    # }
     pRet <- mean_a_pRet
     pRet.p <- 1
     fit_table[y,c("pRet","pRet.p")] <- list(pRet=pRet, pRet.p=pRet.p)
-    ## Fit community level turnover to determine alpha
-    ## Least square fit
-    ### The constraint that 0 < alpha < 1 is implemented by defining al = qnorm(alpha), alpha=pnorm(al)
-    # fit2 <- tryCatch(
-    #   with(as.list(fit$m$getPars()["d"]),
-    #        nls(retained2 ~ a*(1-log((1-pnorm(al))*exp((1-pnorm(al))*d*span)/(exp((1-pnorm(al))*d*span)-pnorm(al)))/log(1-pnorm(al))),
-    #            weights = weight,  ## try both: weight and weight2
-    #            data = time_spans[with(time_spans,span>0),],
-    #            start = c(a=0.3,al=qnorm(0.9)))),
-    #   error = function(x) NA)
 
     if(1){
       if(plotit){
@@ -133,7 +93,6 @@ fitTimeScales <- function(site.occ_array, catchment, x0) {
         with(time_spans,points(span,retained2),col=gray(0.9,0.1))
       }
 
-      #d_to_use <- 0.09222945
       d_to_use <- fit_table[y,"d"]
       with_q <- F
       q <- 1
@@ -185,13 +144,6 @@ fitTimeScales <- function(site.occ_array, catchment, x0) {
     }
 
   }
-
-  # Early return for debugging:
-  # res <- fit_table
-  # return (res)
-  #fit_table <- fit_table[complete.cases(fit_table),]
-
-  #print(fit_table)
 
   if (nrow(fit_table) < x0) {
     res <- "Filtered following fitting"

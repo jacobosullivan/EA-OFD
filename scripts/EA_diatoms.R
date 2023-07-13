@@ -78,11 +78,11 @@ if (0) {
   dat_area_dist <- area_dist(dat, 
                              cores=NULL,
                              catch_max=NULL,
-                             catch="operational")
+                             catch="management")
   str(dat_area_dist)
-  write.csv(dat_area_dist, "summary_data/diatom_dat_area_dist_op.csv", row.names=F)
+  write.csv(dat_area_dist, "summary_data/diatom_dat_area_dist.csv", row.names=F)
 } else {
-  dat_area_dist <- read.csv("summary_data/diatom_dat_area_dist_op.csv")
+  dat_area_dist <- read.csv("summary_data/diatom_dat_area_dist.csv")
 }
 
 ## Compute temporal mean and standard deviation of the SOD
@@ -91,11 +91,11 @@ if (0) {
                                  filter=c(y0 = 1990, t0 = 0, n0 = 0, x0 = 10), 
                                  cores=NULL,
                                  catch_max=NULL,
-                                 catch="operational")
+                                 catch="management")
   str(dat_temporalSOD)
-  write.csv(dat_temporalSOD, "summary_data/diatom_temporalSOD_op.csv", row.names=F)
+  write.csv(dat_temporalSOD, "summary_data/diatom_temporalSOD.csv", row.names=F)
 } else {
-  dat_temporalSOD <- read.csv("summary_data/diatom_temporalSOD_op.csv")
+  dat_temporalSOD <- read.csv("summary_data/diatom_temporalSOD.csv")
 }
 
 ## Compute skewness SOD management catchment
@@ -105,7 +105,7 @@ if (0) {
                                  catch_max=NULL,
                                  catch="rbd")
   str(dat_skewnessSOD)
-  write.csv(dat_skewnessSOD, "summary_data/diatom_dat_skewnessSOD_RB.csv", row.names=F)
+  write.csv(dat_skewnessSOD, "summary_data/diatom_dat_skewnessSOD.csv", row.names=F)
 } else {
   dat_skewnessSOD <- read.csv("summary_data/diatom_dat_skewnessSOD.csv")
 }
@@ -118,7 +118,7 @@ if (0) {
                                              catch_max=NULL,
                                              catch="rbd")
   str(dat_skew_accumulation)
-  write.csv(dat_skew_accumulation, "summary_data/diatom_dat_skew_accumulation_RB.csv", row.names=F)
+  write.csv(dat_skew_accumulation, "summary_data/diatom_dat_skew_accumulation.csv", row.names=F)
 } else {
   dat_skew_accumulation <- read.csv("summary_data/diatom_dat_skew_accumulation.csv")
 }
@@ -128,9 +128,9 @@ if (0) {
                                          dat_rand = dat_skew_accumulation,
                                          filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 8, thresh = -2))
   str(dat_temporalMoments)
-  write.csv(dat_temporalMoments, "summary_data/diatom_dat_temporalMoments_RB.csv", row.names=F)
+  write.csv(dat_temporalMoments, "summary_data/diatom_dat_temporalMoments.csv", row.names=F)
 } else {
-  dat_temporalMoments <- read.csv("summary_data/diatom_dat_temporalMoments_OC.csv")
+  dat_temporalMoments <- read.csv("summary_data/diatom_dat_temporalMoments.csv")
 }
 
 if (0) {
@@ -138,7 +138,7 @@ if (0) {
                            filter=c(y0 = 1990, t0 = 0, n0 = 0, x0 = 10), 
                            cores=NULL,
                            catch_max=NULL,
-                           catch="operational")
+                           catch="management")
   
   str(dat_turnover)
   write.csv(dat_turnover, "summary_data/diatom_dat_turnover.csv", row.names=F)
@@ -147,9 +147,9 @@ if (0) {
                                          filter=c(y0 = 1990, t0 = 0, n0 = 0, x0 = 10), 
                                          cores=NULL,
                                          catch_max=NULL,
-                                         catch="operational")
+                                         catch="management")
   str(dat_turnoverSOD_raw)
-  write.csv(dat_turnoverSOD_raw, "summary_data/diatom_dat_turnoverSOD_raw_jaccard.csv", row.names=F)
+  write.csv(dat_turnoverSOD_raw, "summary_data/diatom_dat_turnoverSOD.csv", row.names=F)
 } else {
   dat_turnover <- read.csv("summary_data/diatom_dat_turnover.csv")
 }
@@ -161,7 +161,7 @@ if (0) {
                                      catch_max=NULL,
                                      catch="management")
   str(dat_turnoverLocal)
-  write.csv(dat_turnoverLocal, "summary_data/diatom_dat_turnoverLocal_betapart.csv", row.names=F)
+  write.csv(dat_turnoverLocal, "summary_data/diatom_dat_turnoverLocal.csv", row.names=F)
 } else {
   dat_turnoverLocal <- read.csv("summary_data/diatom_dat_turnoverLocal.csv")
 }
@@ -171,7 +171,7 @@ if (0) {
                                  filter=c(y0 = 1990, t0 = 0, n0 = 0, x0 = 10), 
                                  cores=NULL,
                                  catch_max=NULL,
-                                 catch="operational")
+                                 catch="management")
   str(dat_turnoverSOD)
   write.csv(dat_turnoverSOD, "summary_data/diatom_dat_turnoverSOD.csv", row.names=F)
 } else {
@@ -180,7 +180,6 @@ if (0) {
 
 if (0) {
   if (0) {
-    # dat <- subset(dat, Management.catchment %in% dat_temporalMoments$catchment)
     dat_fitTimescales <- timescales(dat,
                                     dat_rand = dat_skew_accumulation,
                                     filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 8, thresh = -2),
@@ -204,29 +203,23 @@ if (0) {
                                          m.mn=NA, m.lw=NA, m.up=NA,
                                          cor.al = NA)
   
-  # dat_pRet <- c()
   for (cc in 1:length(dat_fitTimescales)) {
     if (typeof(dat_fitTimescales[[cc]])=="list") {
-      # dat_fitTimescales_ranges$catchment[cc] <- as.character(dat_fitTimescales[[cc]]$catchment)
       dat_fitTimescales_ranges[cc, 2:(ncol(dat_fitTimescales_ranges)-1)] <- as.vector(t(dat_fitTimescales[[cc]]$ranges))
       dat_fitTimescales_ranges[cc, ncol(dat_fitTimescales_ranges)] <- dat_fitTimescales[[cc]]$covar[4,4]
     }
-    # dat_pRet <- rbind(dat_pRet, data.frame(catchment=as.character(dat_fitTimescales[[cc]]$catchment),
-    #                                        pRet=dat_fitTimescales[[cc]]$core$pRet,
-    #                                        pRet.p=dat_fitTimescales[[cc]]$core$pRet.p))
   }
   dat_fitTimescales_ranges <- dat_fitTimescales_ranges[complete.cases(dat_fitTimescales_ranges),]
-  write.csv(dat_fitTimescales_ranges, "summary_data/diatom_dat_fitTimescales_ranges_alpha_omega_c.csv", row.names=F)
-  # write.csv(dat_pRet, "summary_data/diatom_dat_pRet.csv", row.names=F)
+  write.csv(dat_fitTimescales_ranges, "summary_data/diatom_dat_fitTimescales_ranges.csv", row.names=F)
 } else {
-  dat_fitTimescales <- read.csv("summary_data/diatom_dat_fitTimescales_alpha_omega_c.csv")
+  dat_fitTimescales <- read.csv("summary_data/diatom_dat_fitTimescales_ranges.csv")
 }
 
 if (0) {
   dat_l_n_occupancy <- l_n_occupancy(dat,
                                      cores=NULL,
                                      catch_max=NULL,
-                                     catch="operational")
+                                     catch="management")
   str(dat_l_n_occupancy)
   write.csv(dat_l_n_occupancy, "summary_data/diatom_dat_l_n_occupancy.csv", row.names=F)
 } else {
@@ -236,106 +229,12 @@ if (0) {
 ## Time series species richness
 if (0) {
   dat_richnessLocal <- richnessLocal(dat,
-                                     filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 5, i=20))
+                                     filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 5, i0=20))
   str(dat_richnessLocal)
-  write.csv(dat_richnessLocal, "summary_data/diatom_dat_richnessLocal_rare.csv", row.names=F)
-  
-  ggplot(subset(dat_richnessLocal, catchment %in% sample(unique(dat_richnessLocal$catchment), 10)), 
-         aes(x=count.tot, y=S, col=factor(paste(catchment, site)))) +
-    geom_point() +
-    geom_smooth(method='lm', se=F, lwd=0.5) +
-    scale_x_continuous(trans='log10') +
-    scale_y_continuous(trans='log10') +
-    theme(legend.position = "none")
-  
-  ggplot(subset(dat_richnessLocal, catchment %in% sample(unique(dat_richnessLocal$catchment), 10)), 
-         aes(x=year, y=count.tot, col=factor(paste(catchment,site)))) +
-    geom_point() +
-    geom_smooth(method='lm', se=F) +
-    scale_y_continuous(trans='log10') +
-    theme(legend.position = "none")
-  
-  if (0) {
-    dat_richnessLocal <- read.csv("summary_data/diatom_dat_richnessLocal.csv")
-  }
-  
-  dat_richnessLocal$rep <- paste0(dat_richnessLocal$catchment, dat_richnessLocal$site)
-  dat_richnessLocal$rep <- as.numeric(factor(dat_richnessLocal$rep))
-  
-  png("figures/local_richness_diatom.png", 5, 5, units = "in", res=300)
-  set.seed(3)
-  ggplot(subset(dat_richnessLocal, rep %in% sample(unique(dat_richnessLocal$rep), 100)), 
-         aes(x=year, y=S, col=factor(paste(catchment, site)))) +
-    geom_point() +
-    geom_smooth(method="lm", se=F) +
-    # geom_smooth(se=F) +
-    theme_bw() +
-    theme(panel.grid = element_blank(), 
-          legend.position = "none") +
-    labs(x="Year", y="Richness", title="Diatoms")
-  dev.off()
-
-  sl <- c()
-  for (x in 1:length(unique(dat_richnessLocal$rep))) {
-    dat_sub <- subset(dat_richnessLocal, rep==x)
-    dat_sub <- subset(dat_sub, year < min(dat_sub$year)+10)
-    # dat_sub <- subset(dat_richnessLocal, rep==x & year < 2010)
-    if (nrow(dat_sub) < 5) {
-      next
-    }
-    mod <- lm(S~year, dat_sub)
-    sl <- rbind(sl, data.frame(p=summary(mod)$coefficients[2,4],
-                               sl=summary(mod)$coefficients[2,1]))
-  }
-  
-  length(which(sl$p<0.05))/nrow(sl)
-  mean(sl$sl)
-  par(mfrow=c(1,2))
-  hist(sl$p)
-  hist(sl$sl)
-  
-  ## 22% of sites show significant linear trend in richness over time when years > 2010 included
-  ## mean linear slope 3.74 suggesting an increase in 4 species every year or so when years > 2010 included
-  ## 32% of sites show significant linear trend in richness over time when years > 2010 excluded
-  ## mean linear slope 1.15 suggesting an increase in one species every year or so when years > 2010 excluded
-  ## 18% of sites show significant linear trend in richness over time when first 10 years only used
-  ## mean linear slope 3.42 suggesting an increase in one species every year or so when first 10 years only used
-  
-  mkS <- c()
-  for (r in sort(unique(dat_richnessLocal$rep))) {
-    dat_sub <- subset(dat_richnessLocal, rep==r)
-    dat_sub <- subset(dat_sub, year < min(dat_sub$year)+10)
-    # dat_sub <- subset(dat_richnessLocal, rep==r & year < 2010)
-    
-    if(nrow(dat_sub) < 5) {
-      next
-    }
-    
-    S_na_impute <- rep(NA, 1 + max(dat_sub$year) - min(dat_sub$year))
-    S_na_impute[1+dat_sub$year-min(dat_sub$year)] <- dat_sub$S
-    tt <- min(dat_sub$year):max(dat_sub$year)
-    
-    S_na_impute <- na_interpolation(S_na_impute)
-    mod.mk <- mk.test(S_na_impute)
-    mod.sens <- sens.slope(S_na_impute)
-    int.sens <- median(S_na_impute)-(mod.sens$estimates)*median(tt-min(tt))
-    mkS <- rbind(mkS, 
-                 data.frame(rep=r,
-                            mk=mod.mk$p.value,
-                            sens=int.sens))
-  }
-  
-  length(which(mkS$mk < 0.05))/nrow(mkS)
-  mean(mkS$sens)
-  hist(mkS$mk)
-  hist(mkS$sens)
-  
-  ## 47% of sites significant trend according to MK (check that p value is sufficient here) when years > 2010 included
-  ## 31% of sites significant trend according to MK (check that p value is sufficient here) when years > 2010 excluded
-  ## 29% of sites significant trend according to MK (check that p value is sufficient here) when first 10 years are included
+  write.csv(dat_richnessLocal, "summary_data/diatom_dat_richnessLocal.csv", row.names=F)
   
 } else {
-  
+  dat_richnessLocal <- read.csv("summary_data/diatom_dat_richnessLocal.csv")
 }
 
 if (0) {

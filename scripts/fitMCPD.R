@@ -138,8 +138,6 @@ f <- function(site.occ) {
     ss <- site.occ
   }
   
-  # print(ss)
-  
   names(ss) <- 1:length(ss)
   obs <- ss
   

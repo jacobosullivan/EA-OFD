@@ -11,19 +11,13 @@ require(trend) # mann-kendall test and sen's slope
 
 source("scripts/fitMCPD.R")
 
-# Filtering parameters:
-## y0 <- 1990 # first year
-## t0 <- 0 # min no taxa
-## n0 <- 0 # min no sites
-## x0 <- 10 # min length timeseries
-
 ## Catchment-year geometry
 area_dist <- function(dat, 
                       cores=NULL,
                       catch_max=NULL,
                       catch="management") {
   
-  ## For each management catchment record the total area and mean distance between samples
+  ## This function will, for each management catchment, record the total area and mean distance between samples
   if (is.null(cores)) {
     cores=detectCores()
   }
@@ -96,13 +90,13 @@ area_dist <- function(dat,
   return(dat_comb)
 }
 
-## Compute skewness SOD management catchment
+## Compute skewness OFD management catchment
 skewnessSOD <- function(dat, 
                         cores=NULL,
                         catch_max=NULL,
                         catch="management") {
   
-  ## Compute temporal mean and standard deviation of the SOD
+  ## This function will compute temporal mean and standard deviation of the OFD
   if (is.null(cores)) {
     cores=detectCores()  
   }
@@ -221,7 +215,7 @@ temporalSOD <- function(dat,
                         catch_max=NULL,
                         catch="management") {
   
-  ## Compute temporal mean and standard deviation of the SOD
+  ## This function will compute temporal mean and standard deviation of the OFD
   if (catch == "management") {
     catch_index <- which(colnames(dat) == "Management.catchment")  
   } else if (catch == "operational") {
@@ -328,7 +322,7 @@ skew_accumulation <- function(dat,
                               catch_max=NULL,
                               catch="management") {
   
-  ## First (and second) derivative skewness POD macroinverts under random accumulation of the catchment year
+  ## This function will compute the first (and second) derivative skewness OFD under random accumulation of the catchment year
   if (is.null(cores)) {
     cores=detectCores()  
   }
@@ -430,14 +424,16 @@ skew_accumulation <- function(dat,
 temporalMoments <- function(dat_mom, 
                             dat_rand,
                             filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 8, thresh = -2)) {
-  # dat_mom: moments of the SOD or each catchment year
+  
+  # This function will analyse temporal fluctations in the moments of the OFD
+  # dat_mom: moments of the OFD or each catchment year
   # dat_rand: outcome of skewness accumulation experiment
   
   # filter by curvature of skew accumulation experiment
   filtered_catchment_years <- do.call(paste,subset(dat_rand, log10(abs(dat_rand$sk_s_d1)) > filter[5])[,c(grep("catchment", names(dat_rand)),grep("year", names(dat_rand)))])
   dat_mom <- dat_mom[!do.call(paste,dat_mom[,c(grep("catchment", names(dat_mom)),grep("year", names(dat_mom)))]) %in% filtered_catchment_years,]
   
-  # analysis of SOD (abs and prop) moment time series
+  # analysis of OFD (abs and prop) moment time series
   dat_ret <- c()
   for (cc in sort(unique(dat_mom$catchment))) {
     dat_sub <- subset(dat_mom, catchment==cc & year>=filter[1] & no_taxa>=filter[2] & no_site>=filter[3])
@@ -592,7 +588,7 @@ turnover <- function(dat,
                      catch_max=NULL,
                      catch="management") {
   
-  ## Decay in similarity with temporal distance averaged over all start years
+  ## This function will compute the decay in similarity with temporal distance averaged over all start years
   if (is.null(cores)) {
     cores=detectCores()  
   }
@@ -694,7 +690,7 @@ turnoverLocal <- function(dat,
                           catch_max=NULL,
                           catch="management") {
   
-  ## Decay in similarity with temporal distance averaged over all start years
+  ## This function will compute the decay in similarity with temporal distance averaged over all start years
   if (is.null(cores)) {
     cores=detectCores()  
   }
@@ -721,9 +717,6 @@ turnoverLocal <- function(dat,
   }
   
   dat_comb <- foreach (i=1:no_metacomms, .combine=rbind) %dopar% {
-  # dat_comb <- foreach (i=1:3, .combine=rbind) %dopar% {
-  # for (i in 1:no_metacomms) {
-    
     require(tidyverse) # relational database management
     require(vegan) # compute beta diversity
     require(Matrix) # sparse matrix ss tables
@@ -803,7 +796,7 @@ richnessLocal <- function(dat,
                           catch_max=NULL,
                           catch="management") {
   
-  ## Temporal fluctuations in local richness for available sites
+  ## This function will compute the temporal fluctuations in local richness for available sites
   
   require(tidyverse) # relational database management
   require(vegan) # compute beta diversity
@@ -837,9 +830,7 @@ richnessLocal <- function(dat,
     no_metacomms <- length(unique(dat[,catch_index]))
   }
   
-  # dat_comb <- c()
   dat_comb <- foreach (i=1:no_metacomms, .combine=rbind) %dopar% {
-  # for (i in 1:no_metacomms) {
     require(tidyverse) # relational database management
     require(vegan) # compute beta diversity
     require(Matrix) # sparse matrix ss tables
@@ -869,7 +860,6 @@ richnessLocal <- function(dat,
         # print(x)
         dat_mc_x <- subset(dat_mc, site==x)
         dat_mc_x$taxon <- as.numeric(as.factor(dat_mc_x$taxon))
-        # dat_mc_x$year <- as.numeric(as.factor(dat_mc_x$year))
         no_taxa <- max(dat_mc_x$taxon)
         
         richness <- dat_mc_x %>%
@@ -924,10 +914,7 @@ richnessLocal <- function(dat,
           geom_smooth(method='lm', se=F)
       }
     }
-    # if (is.null(nrow(res))) {
-    #   next
-    # }
-    # dat_comb <- rbind(dat_comb, res)
+    
     if (is.data.frame(res)) {
       res  
     }
@@ -942,7 +929,7 @@ turnoverSOD <- function(dat,
                         catch_max=NULL,
                         catch="management") {
   
-  ## Decay in similarity of SOD with temporal distance averaged over all start years
+  ## This function will compute the decay in similarity of OFD with temporal distance averaged over all start years
   if (is.null(cores)) {
     cores=detectCores()  
   }
@@ -1052,7 +1039,7 @@ turnoverSOD_raw <- function(dat,
                             catch="management",
                             method="bray") {
   
-  ## Decay in similarity of SOD with temporal distance averaged over all start years
+  ## This function will compute the decay in similarity of OFD with temporal distance averaged over all start years
   if (is.null(cores)) {
     cores=detectCores()  
   }
@@ -1153,7 +1140,7 @@ timescales <- function(dat,
                        catch_max=NULL,
                        catch="management") {
   
-  ## Decay in similarity of SOD with temporal distance averaged over all start years
+  ## This function will compute the decay in similarity of OFD with temporal distance averaged over all start years
   if (is.null(cores)) {
     cores=detectCores()  
   }
@@ -1234,7 +1221,7 @@ l_n_occupancy <- function(dat,
                           catch_max=NULL,
                           catch="management") {
   
-  ## Compute catchment average and national occupancy for each species
+  ## This function will compute the catchment average and national occupancy for each species
   if (is.null(cores)) {
     cores=detectCores()  
   }
@@ -1319,7 +1306,7 @@ invasionRate <- function(dat,
                          catch_max=NULL,
                          catch="management") {
   
-  ## Estimate metacommunity invasion rate for parameterising LSPOM
+  ## This function will estimate metacommunity invasion rate for parameterising LSPOM
   if (is.null(cores)) {
     cores=detectCores()  
   }
@@ -1402,11 +1389,10 @@ chaoEstimatorMC <- function(dat,
                             catch_max=NULL,
                             catch="management") {
   
-  ### This function will compute the proportional observation rate [S_obs / Chao estimator (\hat{S})]
-  ### for each year in a given catchment
+  # This function will compute the proportional observation rate [S_obs / Chao estimator (\hat{S})] for each year in a given catchment
   
   chaoObs <- function(presAbsVec) {
-    ### This function will compute the proportional observation rate using the Chao estimator
+    # This function will compute the proportional observation rate using the Chao estimator
     D <- length(which(presAbsVec>0))
     f1 <- length(which(presAbsVec==1))
     f2 <- length(which(presAbsVec==2))
@@ -1422,7 +1408,7 @@ chaoEstimatorMC <- function(dat,
     }
   }
     
-  ## Compute temporal mean and standard deviation of the SOD
+  ## Compute temporal mean and standard deviation of the OFD
   if (catch == "management") {
     catch_index <- which(colnames(dat) == "Management.catchment")  
   } else if (catch == "operational") {
