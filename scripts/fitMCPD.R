@@ -134,8 +134,12 @@ f <- function(site.occ) {
     N <- ncol(site.occ)
   } else {
     N <- length(site.occ)
-    ss <- site.occ[1:max(which(site.occ>0))]
+    # ss <- site.occ[1:max(which(site.occ>0))] # remove zeros - this may lead to under-estimation of nNiches...
+    ss <- site.occ
   }
+  
+  # print(ss)
+  
   names(ss) <- 1:length(ss)
   obs <- ss
   

@@ -78,9 +78,9 @@ if (0) {
   dat_area_dist <- area_dist(dat, 
                              cores=NULL,
                              catch_max=NULL,
-                             catch="management")
+                             catch="operational")
   str(dat_area_dist)
-  write.csv(dat_area_dist, "summary_data/macrophyte_dat_area_dist.csv", row.names=F)
+  write.csv(dat_area_dist, "summary_data/macrophyte_dat_area_dist_op.csv", row.names=F)
 } else {
   dat_area_dist <- read.csv("summary_data/macrophyte_dat_area_dist.csv")
 }
@@ -91,11 +91,11 @@ if (0) {
                                  filter=c(y0 = 1990, t0 = 0, n0 = 0, x0 = 10), 
                                  cores=NULL,
                                  catch_max=NULL,
-                                 catch="management")
+                                 catch="operational")
   str(dat_temporalSOD)
-  write.csv(dat_temporalSOD, "summary_data/macrophyte_temporalSOD.csv", row.names=F)
+  write.csv(dat_temporalSOD, "summary_data/macrophyte_temporalSOD_op.csv", row.names=F)
 } else {
-  dat_temporalSOD <- read.csv("summary_data/macrophyte_temporalSOD.csv")
+  dat_temporalSOD <- read.csv("summary_data/macrophyte_temporalSOD_op.csv")
 }
 
 ## Compute skewness SOD management catchment
@@ -103,9 +103,9 @@ if (0) {
   dat_skewnessSOD <- skewnessSOD(dat, 
                                  cores=NULL,
                                  catch_max=NULL,
-                                 catch="management")
+                                 catch="rbd")
   str(dat_skewnessSOD)
-  write.csv(dat_skewnessSOD, "summary_data/macrophyte_dat_skewnessSOD.csv", row.names=F)
+  write.csv(dat_skewnessSOD, "summary_data/macrophyte_dat_skewnessSOD_RB.csv", row.names=F)
 } else {
   dat_skewnessSOD <- read.csv("summary_data/macrophyte_dat_skewnessSOD.csv")
 }
@@ -116,9 +116,9 @@ if (0) {
                                              no_rand=1000,
                                              cores=NULL,
                                              catch_max=NULL,
-                                             catch="management")
+                                             catch="rbd")
   str(dat_skew_accumulation)
-  write.csv(dat_skew_accumulation, "summary_data/macrophyte_dat_skew_accumulation.csv", row.names=F)
+  write.csv(dat_skew_accumulation, "summary_data/macrophyte_dat_skew_accumulation_RB.csv", row.names=F)
 } else {
   dat_skew_accumulation <- read.csv("summary_data/macrophyte_dat_skew_accumulation.csv")
 }
@@ -128,9 +128,9 @@ if (0) {
                                          dat_rand = dat_skew_accumulation,
                                          filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 8, thresh = -2))
   str(dat_temporalMoments)
-  write.csv(dat_temporalMoments, "summary_data/macrophyte_dat_temporalMoments.csv", row.names=F)
+  write.csv(dat_temporalMoments, "summary_data/macrophyte_dat_temporalMoments_RB.csv", row.names=F)
 } else {
-  dat_temporalMoments <- read.csv("summary_data/macrophyte_dat_temporalMoments.csv")
+  dat_temporalMoments <- read.csv("summary_data/macrophyte_dat_temporalMoments_op.csv")
 }
 
 if (0) {
@@ -147,11 +147,27 @@ if (0) {
                                          filter=c(y0 = 1990, t0 = 0, n0 = 0, x0 = 10), 
                                          cores=NULL,
                                          catch_max=NULL,
-                                         catch="management")
+                                         catch="operational")
   str(dat_turnoverSOD_raw)
-  write.csv(dat_turnoverSOD_raw, "summary_data/macrophyte_dat_turnoverSOD_raw.csv", row.names=F)
+  write.csv(dat_turnoverSOD_raw, "summary_data/macrophyte_dat_turnoverSOD_raw_jaccard.csv", row.names=F)
 } else {
   dat_turnover <- read.csv("summary_data/macrophyte_dat_turnover.csv")
+}
+
+if (0) {
+  dat_turnoverLocal <- turnoverLocal(dat,
+                                     filter=c(y0 = 1990, t0 = 10, n0 = 0, x0 = 5), 
+                                     cores=NULL,
+                                     catch_max=NULL,
+                                     catch="management")
+  str(dat_turnoverLocal)
+  write.csv(dat_turnoverLocal, "summary_data/macrophyte_dat_turnoverLocal_betapart.csv", row.names=F)
+} else {
+  dat_turnoverLocal <- read.csv("summary_data/macrophyte_dat_turnoverLocal_betapart.csv")
+  
+  dat_turnoverLocal %>% 
+    mutate(rep=as.numeric(as.factor(paste0(catchment,x)))) %>% 
+    summarise(rep=length(unique(rep)))
 }
 
 if (0) {
@@ -159,7 +175,7 @@ if (0) {
                                  filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10), 
                                  cores=NULL,
                                  catch_max=10,
-                                 catch="management")
+                                 catch="operational")
   str(dat_turnoverSOD)
   write.csv(dat_turnoverSOD, "summary_data/macrophyte_dat_turnoverSOD.csv", row.names=F)
 } else {
@@ -175,9 +191,9 @@ if (0) {
                                     catch_max=NULL,
                                     catch="management")
     str(dat_fitTimescales[[1]])
-    write_rds(dat_fitTimescales, "summary_data/macrophytes_dat_fitTimescales2.RDS")
+    write_rds(dat_fitTimescales, "summary_data/macrophytes_dat_fitTimescales_alpha_omega_c.RDS")
   } else {
-    dat_fitTimescales <- read_rds("summary_data/macrophytes_dat_fitTimescales.RDS")
+    dat_fitTimescales <- read_rds("summary_data/macrophytes_dat_fitTimescales_alpha_omega.RDS")
   }
   dat_fitTimescales_ranges <- data.frame(catchment=rep(NA, length(dat_fitTimescales)),
                                          d.mn=NA, d.lw=NA, d.up=NA,
@@ -202,7 +218,7 @@ if (0) {
     #                                        pRet.p=dat_fitTimescales[[cc]]$core$pRet.p))
   }
   dat_fitTimescales_ranges <- dat_fitTimescales_ranges[complete.cases(dat_fitTimescales_ranges),]
-  write.csv(dat_fitTimescales_ranges, "summary_data/macrophyte_dat_fitTimescales_ranges2.csv", row.names=F)
+  write.csv(dat_fitTimescales_ranges, "summary_data/macrophyte_dat_fitTimescales_ranges_alpha_omega_c.csv", row.names=F)
   # write.csv(dat_pRet, "summary_data/macrophyte_dat_pRet.csv", row.names=F)
 } else {
   dat_fitTimescales <- read.csv("summary_data/macrophyte_dat_fitTimescales.csv")
@@ -212,9 +228,31 @@ if (0) {
   dat_l_n_occupancy <- l_n_occupancy(dat,
                                      cores=NULL,
                                      catch_max=NULL,
-                                     catch="management")
+                                     catch="operational")
   str(dat_l_n_occupancy)
   write.csv(dat_l_n_occupancy, "summary_data/macrophyte_dat_l_n_occupancy.csv", row.names=F)
 } else {
   dat_l_n_occupancy <- read.csv("summary_data/macrophyte_dat_l_n_occupancy.csv")
+}
+
+## Time series species richness
+if (0) {
+  dat_richnessLocal <- richnessLocal(dat,
+                                     filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 5, i0=20))
+  str(dat_richnessLocal)
+  write.csv(dat_richnessLocal, "summary_data/macrophyte_dat_richnessLocal_rare.csv", row.names=F)
+
+} else {
+  dat_richnessLocal <- read.csv("summary_data/macrophyte_dat_richnessLocal.csv")
+}
+
+if (0) {
+  dat_chaoEstimatorMC <- chaoEstimatorMC(dat,
+                                         dat_rand=dat_skew_accumulation,
+                                         filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10),
+                                         catch="management")
+  str(dat_chaoEstimatorMC)
+  write.csv(dat_chaoEstimatorMC, "summary_data/macrophyte_dat_chaoEstimatorMC.csv", row.names=F)
+} else {
+  dat_chaoEstimatorMC <- read.csv("summary_data/macrophyte_dat_chaoEstimatorMC.csv")
 }

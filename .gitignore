@@ -13,3 +13,15 @@ summary_data/*
 *.swp
 *.RData
 *.Rhistory
+.DS_Store
+.RDataTmp
+.RDataTmp1
+.RDataTmp2
+Diatoms/test/
+NA
+Rplots.pdf
+scripts/AIC_log-series.R
+scripts/LSPOM _realisation _alpha_t.R
+scripts/The variability of biodiversity metrics in large metacommunities B (2022-06-25 14_31_04)(5).html
+scripts/fitTimeScales_c_rate1.R
+scripts/fitTimeScales_orig.R

@@ -25,7 +25,7 @@ area_dist <- function(dat,
   
   ## For each management catchment record the total area and mean distance between samples
   if (is.null(cores)) {
-    cores=detectCores()  
+    cores=detectCores()
   }
   
   if (!is.null(catch_max)) {
@@ -292,7 +292,13 @@ temporalSOD <- function(dat,
       }
       
       SOD_mn <- apply(SOD_mat, MAR=2, FUN=mean)
-      SOD_sd <- apply(SOD_mat, MAR=2, FUN=sd)
+      if (1) {
+        # uncorrected sample standard deviation
+        SOD_sd <- apply(SOD_mat, MAR=2, FUN=sd)
+      } else {
+        # corrected sample standard deviation
+        SOD_sd <- apply(SOD_mat, MAR=2, FUN=function(x) sqrt(mean((x-mean(x))^2)))  
+      }
       SOD_se <- apply(SOD_mat, MAR=2, FUN=function(x) sqrt(var(x)/length(x)))
       SOD_ci5 <- apply(SOD_mat, MAR=2, FUN=function(x) quantile(x, 0.05))
       SOD_ci95 <- apply(SOD_mat, MAR=2, FUN=function(x) quantile(x, 0.95))
@@ -682,6 +688,254 @@ turnover <- function(dat,
   return(dat_comb)
 }
 
+turnoverLocal <- function(dat,
+                          filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10), 
+                          cores=NULL,
+                          catch_max=NULL,
+                          catch="management") {
+  
+  ## Decay in similarity with temporal distance averaged over all start years
+  if (is.null(cores)) {
+    cores=detectCores()  
+  }
+  
+  if (!is.null(catch_max)) {
+    cores=min(c(cores,catch_max))
+  }
+  
+  cl <- makeCluster(cores)
+  registerDoParallel(cl)
+  
+  if (catch == "management") {
+    catch_index <- which(colnames(dat) == "Management.catchment")  
+  } else if (catch == "operational") {
+    catch_index <- which(colnames(dat) == "Operational.catchment")  
+  } else if (catch == "rbd") {
+    catch_index <- which(colnames(dat) == "River.basin.district")
+  }
+  
+  if (!is.null(catch_max)) {
+    no_metacomms <- catch_max  
+  } else {
+    no_metacomms <- length(unique(dat[,catch_index]))
+  }
+  
+  dat_comb <- foreach (i=1:no_metacomms, .combine=rbind) %dopar% {
+  # dat_comb <- foreach (i=1:3, .combine=rbind) %dopar% {
+  # for (i in 1:no_metacomms) {
+    
+    require(tidyverse) # relational database management
+    require(vegan) # compute beta diversity
+    require(Matrix) # sparse matrix ss tables
+    require(trend)
+    require(imputeTS)
+    require(tseries)
+    require(betapart)
+    
+    dat_mc <- subset(dat, dat[,catch_index]==sort(unique(dat[,catch_index]))[i]) %>%
+      group_by(taxon,site,year) %>%
+      summarise(count=sum(count))
+    
+    dat_mc <- dat_mc %>%
+      filter(year > filter[1])
+    
+    dat_mc$site <- as.numeric(factor(dat_mc$site))
+    dat_mc$taxon <- as.numeric(factor(dat_mc$taxon))
+    no_taxa <- max(dat_mc$taxon)
+    no_year <- length(unique(dat_mc$year))
+    no_site <- max(dat_mc$site)
+    
+    if ((no_year < filter[4]) || (no_taxa < filter[2]) || (no_site < filter[3])) {
+      res = NULL
+    } else {
+      
+      res <- c()
+      for (x in 1:no_site) {
+        dat_mc_x <- subset(dat_mc, site==x)
+        dat_mc_x$taxon <- as.numeric(as.factor(dat_mc_x$taxon))
+        # dat_mc_x$year <- as.numeric(as.factor(dat_mc_x$year))
+        no_taxa <- max(dat_mc_x$taxon)
+        no_year <- length(unique(dat_mc_x$year))
+        if (no_year < filter[4]) {
+          next
+        }
+          
+        site.occ <- Matrix(0, nrow=no_taxa, ncol=no_year, sparse = T)
+        for (y in 1:no_year) {
+          site.occ[subset(dat_mc_x, year==sort(unique(dat_mc_x$year))[y])$taxon,y] <- 1
+        }
+        
+        J <- as.matrix(vegdist(t(site.occ), method="jaccard"))
+        J.t <- data.frame(J = 1-as.vector(J),
+                          y = as.vector(as.matrix(dist(as.numeric(sort(unique(dat_mc_x$year)))))),
+                          y0 = rep(1:length(unique(dat_mc_x$year)), each=nrow(J)))
+        
+        J.t.mn <- J.t %>% 
+          group_by(y) %>%
+          summarise(J=mean(J)) %>%
+          filter(y > min(y))
+        J.t.mn$x <- x
+        J.t.mn$no_years <- 1+nrow(J.t.mn)
+        
+        B.t <- betapart.core(t(site.occ))
+        B.t.res <-beta.pair(B.t, index.family="jac")
+        
+        B.t_turn <- mean(as.matrix(B.t.res$beta.jtu))
+        B.t_nest <- mean(as.matrix(B.t.res$beta.jne))
+        
+        res <- rbind(res, cbind(J.t.mn, turn.mn=mean(as.matrix(B.t.res$beta.jtu)), 
+                                nest.mn=mean(as.matrix(B.t.res$beta.jne)), tot.mn=mean(as.matrix(B.t.res$beta.jac))))
+      }
+      
+      res$catchment <- sort(unique(dat[,catch_index]))[i]
+    }
+    if (is.data.frame(res)) {
+      res  
+    }
+  }
+  stopCluster(cl)
+  return(dat_comb)
+}
+
+richnessLocal <- function(dat,
+                          filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10, i0=100), 
+                          cores=NULL,
+                          catch_max=NULL,
+                          catch="management") {
+  
+  ## Temporal fluctuations in local richness for available sites
+  
+  require(tidyverse) # relational database management
+  require(vegan) # compute beta diversity
+  require(Matrix) # sparse matrix ss tables
+  require(trend)
+  require(imputeTS)
+  require(tseries)
+
+  if (is.null(cores)) {
+    cores=detectCores()  
+  }
+  
+  if (!is.null(catch_max)) {
+    cores=min(c(cores,catch_max))
+  }
+  
+  cl <- makeCluster(cores)
+  registerDoParallel(cl)
+  
+  if (catch == "management") {
+    catch_index <- which(colnames(dat) == "Management.catchment")  
+  } else if (catch == "operational") {
+    catch_index <- which(colnames(dat) == "Operational.catchment")  
+  } else if (catch == "rbd") {
+    catch_index <- which(colnames(dat) == "River.basin.district")
+  }
+  
+  if (!is.null(catch_max)) {
+    no_metacomms <- catch_max  
+  } else {
+    no_metacomms <- length(unique(dat[,catch_index]))
+  }
+  
+  # dat_comb <- c()
+  dat_comb <- foreach (i=1:no_metacomms, .combine=rbind) %dopar% {
+  # for (i in 1:no_metacomms) {
+    require(tidyverse) # relational database management
+    require(vegan) # compute beta diversity
+    require(Matrix) # sparse matrix ss tables
+    require(trend)
+    require(imputeTS)
+    require(tseries)
+    
+    dat_mc <- subset(dat, dat[,catch_index]==sort(unique(dat[,catch_index]))[i]) %>%
+      group_by(taxon,site,year) %>%
+      summarise(count=sum(count))
+    
+    dat_mc <- dat_mc %>%
+      filter(year > filter[1])
+    
+    dat_mc$site <- as.numeric(factor(dat_mc$site))
+    dat_mc$taxon <- as.numeric(factor(dat_mc$taxon))
+    no_taxa <- max(dat_mc$taxon)
+    no_year <- length(unique(dat_mc$year))
+    no_site <- max(dat_mc$site)
+        
+    if ((no_year < filter[4]) || (no_taxa < filter[2]) || (no_site < filter[3])) {
+      res = NULL
+    } else {
+      
+      res <- c()
+      for (x in 1:no_site) {
+        # print(x)
+        dat_mc_x <- subset(dat_mc, site==x)
+        dat_mc_x$taxon <- as.numeric(as.factor(dat_mc_x$taxon))
+        # dat_mc_x$year <- as.numeric(as.factor(dat_mc_x$year))
+        no_taxa <- max(dat_mc_x$taxon)
+        
+        richness <- dat_mc_x %>%
+          group_by(year) %>%
+          summarise(S=length(unique(taxon)),
+                    count.tot=sum(count))
+        
+        dat_mc_x <- dat_mc_x %>%
+          filter(year %in% subset(richness, count.tot >= filter[5])$year)
+        
+        no_year <- length(unique(dat_mc_x$year))
+        
+        if (no_year < filter[4]) {
+          next
+        }
+        
+        if (nrow(dat_mc_x)==0) {
+          next
+        }
+        
+        richness <- richness %>% 
+          filter(count.tot >= filter[5])
+        
+        dat_mc_x <- dat_mc_x %>% 
+          left_join(richness[,-2], by="year")
+        
+        dat_mc_x$count.rare <- 0
+        
+        rep_rare <- 10
+        
+        S_rare <- matrix(0, nrow(richness), rep_rare)
+        
+        for (r in 1:rep_rare) {
+          for (obs in 1:nrow(dat_mc_x)) {
+            dat_mc_x$count.rare[obs] <- rbinom(1, size=dat_mc_x$count[obs], prob=min(richness$count.tot)/dat_mc_x$count.tot[obs])
+          }
+          S_rare[,r] <- (dat_mc_x %>% 
+            group_by(year) %>%
+            summarise(S=length(which(count.rare>0))))$S
+        }
+        
+        richness$S_rare.mn <- rowMeans(S_rare)
+        richness$S_rare.sd <- apply(S_rare, 1, sd)
+        
+        res <- rbind(res, cbind(site=x, richness))
+      }
+      res$catchment <- sort(unique(dat[,catch_index]))[i]
+      if (0) {
+        ggplot(res, aes(x=year, y=S_rare.mn, col=factor(site))) +
+          geom_point() +
+          theme(legend.position="none") +
+          geom_smooth(method='lm', se=F)
+      }
+    }
+    # if (is.null(nrow(res))) {
+    #   next
+    # }
+    # dat_comb <- rbind(dat_comb, res)
+    if (is.data.frame(res)) {
+      res  
+    }
+  }
+  stopCluster(cl)
+  return(dat_comb)
+}
+
 turnoverSOD <- function(dat,
                         filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10), 
                         cores=NULL,
@@ -795,7 +1049,8 @@ turnoverSOD_raw <- function(dat,
                             filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10), 
                             cores=NULL,
                             catch_max=NULL,
-                            catch="management") {
+                            catch="management",
+                            method="bray") {
   
   ## Decay in similarity of SOD with temporal distance averaged over all start years
   if (is.null(cores)) {
@@ -857,18 +1112,33 @@ turnoverSOD_raw <- function(dat,
         }
         SOD[,y] <- rowSums(site.occ)/length(unique(dat_y$site))
       }
-      B <- as.matrix(vegdist(t(SOD), method="bray"))
-      B.t <- data.frame(B = 1-as.vector(B),
-                        y = as.vector(as.matrix(dist(as.numeric(sort(unique(dat_mc$year)))))),
-                        y0 = rep(1:length(unique(dat_mc$year)), each=nrow(B)))
-      
-      B.t.mn <- B.t %>% 
-        group_by(y) %>%
-        summarise(B=mean(B))
-      
-      res <- data.frame(catchment=sort(unique(dat[,catch_index]))[i],
-                        dt=B.t.mn$y,
-                        BC.mn=B.t.mn$B)
+      if (method=="bray") {
+        B <- as.matrix(vegdist(t(SOD), method="bray"))
+        B.t <- data.frame(B = 1-as.vector(B),
+                          y = as.vector(as.matrix(dist(as.numeric(sort(unique(dat_mc$year)))))),
+                          y0 = rep(1:length(unique(dat_mc$year)), each=nrow(B)))
+        
+        B.t.mn <- B.t %>% 
+          group_by(y) %>%
+          summarise(B=mean(B))
+        
+        res <- data.frame(catchment=sort(unique(dat[,catch_index]))[i],
+                          dt=B.t.mn$y,
+                          BC.mn=B.t.mn$B)
+      } else if (method=="jaccard") {
+        J <- as.matrix(vegdist(t(1*SOD>0), method="jaccard"))
+        J.t <- data.frame(J = 1-as.vector(J),
+                          y = as.vector(as.matrix(dist(as.numeric(sort(unique(dat_mc$year)))))),
+                          y0 = rep(1:length(unique(dat_mc$year)), each=nrow(J)))
+        
+        J.t.mn <- J.t %>% 
+          group_by(y) %>%
+          summarise(J=mean(J))
+        
+        res <- data.frame(catchment=sort(unique(dat[,catch_index]))[i],
+                          dt=J.t.mn$y,
+                          J.mn=J.t.mn$J)
+      }
     }
     res
   }
@@ -1041,4 +1311,193 @@ l_n_occupancy <- function(dat,
     left_join(national, by=c("taxon", "year"))
   
   return(dat_merge)
+}
+
+invasionRate <- function(dat,
+                         filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10), 
+                         cores=NULL,
+                         catch_max=NULL,
+                         catch="management") {
+  
+  ## Estimate metacommunity invasion rate for parameterising LSPOM
+  if (is.null(cores)) {
+    cores=detectCores()  
+  }
+  
+  if (!is.null(catch_max)) {
+    cores=min(c(cores,catch_max))
+  }
+  
+  cl <- makeCluster(cores)
+  registerDoParallel(cl)
+  
+  if (catch == "management") {
+    catch_index <- which(colnames(dat) == "Management.catchment")  
+  } else if (catch == "operational") {
+    catch_index <- which(colnames(dat) == "Operational.catchment")  
+  } else if (catch == "rbd") {
+    catch_index <- which(colnames(dat) == "River.basin.district")
+  }
+  
+  if (!is.null(catch_max)) {
+    no_metacomms <- catch_max  
+  } else {
+    no_metacomms <- length(unique(dat[,catch_index]))
+  }
+  
+  dat_comb <- foreach (i=1:no_metacomms, .combine=rbind) %dopar% {
+    
+    require(tidyverse) # relational database management
+    require(Matrix) # sparse matrix ss tables
+    
+    dat_mc <- subset(dat, dat[,catch_index]==sort(unique(dat[,catch_index]))[i]) %>%
+      group_by(taxon,site,year) %>%
+      summarise(count=sum(count))
+    
+    dat_mc <- dat_mc %>%
+      filter(year > filter[1])
+    
+    dat_mc$site <- as.numeric(factor(dat_mc$site))
+    dat_mc$taxon <- as.numeric(factor(dat_mc$taxon))
+    no_taxa <- max(dat_mc$taxon)
+    no_year <- length(unique(dat_mc$year))
+    no_site <- max(dat_mc$site)
+    
+    if ((no_year < filter[4]) || (no_taxa < filter[2]) || (no_site < filter[3])) {
+      res = NULL
+    } else {
+      
+      site.occ <- Matrix(0, nrow=no_taxa, ncol=no_year, sparse = T)
+      
+      for (y in 1:no_year) {
+        site.occ[subset(dat_mc, year==sort(unique(dat_mc$year))[y])$taxon,y] <- 1
+      }
+      
+      site.occ2 <- Matrix(0, nrow=no_taxa, ncol=no_year, sparse = T)
+      
+      for (j in 1:nrow(site.occ2)) {
+        site.occ2[j, which(site.occ[j,]>0)[1]:ncol(site.occ2)] <- 1
+      }
+      site.occ2 <- site.occ2[order(apply(as.matrix(site.occ2), MAR=1, function(x) which(x>0)[1])),]
+      image(as.matrix(site.occ2))
+      plot(colSums(site.occ2) ~ sort(unique(dat_mc$year)))
+      mod <- lm(colSums(site.occ2) ~ sort(unique(dat_mc$year)))
+      abline(mod)
+      
+      res <- data.frame(catchment=sort(unique(dat[,catch_index]))[i],
+                        no_year = no_year,
+                        no_taxa = no_taxa,
+                        first_detect_py = coefficients(summary(mod))[2,1])
+    }
+    res
+  }
+  stopCluster(cl)
+  return(dat_comb)
+}
+
+chaoEstimatorMC <- function(dat,
+                            dat_rand,
+                            filter=c(y0 = 1990, t0 = 10, n0 = 5, x0 = 10), 
+                            cores=NULL,
+                            catch_max=NULL,
+                            catch="management") {
+  
+  ### This function will compute the proportional observation rate [S_obs / Chao estimator (\hat{S})]
+  ### for each year in a given catchment
+  
+  chaoObs <- function(presAbsVec) {
+    ### This function will compute the proportional observation rate using the Chao estimator
+    D <- length(which(presAbsVec>0))
+    f1 <- length(which(presAbsVec==1))
+    f2 <- length(which(presAbsVec==2))
+    
+    if (f1==0) {
+      return(NA)
+    } else if (f2==0) {
+      S <- D + ((f1*(f1-1))/(2*(f2+1)))
+      return(D/S)
+    } else {
+      S <- D + ((f1^2)/(2*f2))
+      return(D/S)
+    }
+  }
+    
+  ## Compute temporal mean and standard deviation of the SOD
+  if (catch == "management") {
+    catch_index <- which(colnames(dat) == "Management.catchment")  
+  } else if (catch == "operational") {
+    catch_index <- which(colnames(dat) == "Operational.catchment")  
+  } else if (catch == "rbd") {
+    catch_index <- which(colnames(dat) == "River.basin.district")
+  }
+  
+  if (!is.null(catch_max)) {
+    no_metacomms <- catch_max  
+  } else {
+    no_metacomms <- length(unique(dat[,catch_index]))
+  }
+  
+  if (is.null(cores)) {
+    cores=detectCores()  
+  }
+  
+  if (!is.null(catch_max)) {
+    cores=min(c(cores,catch_max))
+  }
+  
+  cl <- makeCluster(cores)
+  registerDoParallel(cl)
+  
+  # filter by curvature of skew accumulation experiment
+  filtered_catchment_years <- do.call(paste,subset(dat_rand, log10(abs(dat_rand$sk_s_d1)) > filter[5])[,c(grep("catchment", names(dat_rand)),grep("year", names(dat_rand)))])
+  dat <- dat[!do.call(paste,dat[,c(catch_index, grep("year", names(dat)))]) %in% filtered_catchment_years,]
+  
+  dat_comb <- foreach (i=1:no_metacomms, .combine=rbind) %dopar% {
+    
+    require(tidyverse) # relational database management
+    require(Matrix) # sparse matrix ss tables
+    
+    dat_mc <- subset(dat, dat[,catch_index]==sort(unique(dat[,catch_index]))[i]) %>%
+      group_by(taxon,site,year) %>%
+      summarise(count=sum(count))
+    dat_mc$site <- as.numeric(factor(dat_mc$site))
+    dat_mc$taxon <- as.numeric(factor(dat_mc$taxon))
+    no_site <- max(dat_mc$site)
+    no_taxa <- max(dat_mc$taxon)
+    
+    dat_mc <- dat_mc %>%
+      filter(year > filter[1])
+    
+    chaoObsMC <- c()
+    for (y in sort(unique(dat_mc$year))) {
+      dat_mc_y <- subset(dat_mc, year == y)
+      dat_mc_y$site <- as.numeric(factor(dat_mc_y$site))
+      dat_mc_y$taxon <- as.numeric(factor(dat_mc_y$taxon))
+      no_site <- max(dat_mc_y$site)
+      no_taxa <- max(dat_mc_y$taxon)
+      if ((no_site < filter[3])||(no_taxa < filter[2])) {
+        next
+      }
+      site.occ <- Matrix(0, nrow=no_taxa, ncol=no_site, sparse = T)
+      for (j in 1:no_taxa) {
+        site.occ[j,subset(dat_mc_y, taxon==j)$site] <- subset(dat_mc_y, taxon==j)$count
+      }
+      presAbsMc <- rowSums(site.occ)
+      chaoObsMC[length(chaoObsMC)+1] <- chaoObs(presAbsMc)
+    }
+    
+    chaoObsMC <- chaoObsMC[!is.na(chaoObsMC)]
+    
+    if (length(chaoObsMC) == 0) {
+      res = NULL
+    } else {
+      
+      res <- data.frame(catchment=sort(unique(dat[,catch_index]))[i],
+                        chaoObs.med=median(chaoObsMC))
+    }
+    res
+  }
+  stopCluster(cl)
+  
+  return(dat_comb)
 }
