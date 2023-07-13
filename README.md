@@ -3,7 +3,7 @@
 ## Jacob O'Sullivan
 ## j.osullivan@zoho.com
 
-### Temporally robust occupancy frequency distributions in riverine metacommunities explained by local biodiversity regulation:
+### Temporally robust occupancy frequency distributions in riverine metacommunities explained by local biodiversity regulation
 
 Environment Agency data on Macroinvertebrate, Macrophyte and Diatom observations in England and R scripts to reproduce analyses of the catchment-scale temporal occupancy frequency distribution
 
